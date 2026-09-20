@@ -1,22 +1,25 @@
 import React from 'react';
 import { Search, Globe, Shield, User, Lock, Unlock, LogOut } from 'lucide-react';
+import { translations } from '../data/translations';
 
-export default function Navbar({ activeScreen, setActiveScreen, currentUser, setCurrentUser }) {
+export default function Navbar({ activeScreen, setActiveScreen, currentUser, setCurrentUser, language = 'en', toggleLanguage }) {
+  const t = (key) => translations[language]?.[key] || translations['en']?.[key] || key;
+
   // Public links shown before authentication
   const publicNavLinks = [
-    { id: 'home', label: 'Home' },
-    { id: 'impact', label: 'Impact' },
-    { id: 'about', label: 'About' },
+    { id: 'home', label: t('home') },
+    { id: 'impact', label: t('impact') },
+    { id: 'about', label: t('about') },
   ];
 
   // Full links unlocked after login, signup, and authentication
   const authenticatedNavLinks = [
-    { id: 'home', label: 'Home' },
-    { id: 'report', label: 'Report Problem' },
-    { id: 'challenges', label: 'Challenges' },
-    { id: currentUser?.role === 'University' ? 'university' : currentUser?.role === 'Industry' ? 'industry' : currentUser?.role === 'Government' ? 'government' : 'challenges', label: 'Dashboard' },
-    { id: 'workspace', label: 'Workspace' },
-    { id: 'impact', label: 'Impact' },
+    { id: 'home', label: t('home') },
+    { id: 'report', label: t('reportProblem') },
+    { id: 'challenges', label: t('challenges') },
+    { id: currentUser?.role === 'University' ? 'university' : currentUser?.role === 'Industry' ? 'industry' : currentUser?.role === 'Government' ? 'government' : 'challenges', label: t('dashboard') },
+    { id: 'workspace', label: t('workspace') },
+    { id: 'impact', label: t('impact') },
   ];
 
   const navLinks = currentUser ? authenticatedNavLinks : publicNavLinks;
@@ -53,7 +56,7 @@ export default function Navbar({ activeScreen, setActiveScreen, currentUser, set
               <span style={{ fontSize: '22px', fontWeight: 800, color: '#16A34A', letterSpacing: '-0.5px' }}>Setu</span>
             </div>
             <p style={{ fontSize: '10.5px', color: '#64748B', fontWeight: 600, letterSpacing: '0.6px', textTransform: 'uppercase' }}>
-              People. Ideas. Impact.
+              {t('tagline')}
             </p>
           </div>
         </div>
@@ -96,32 +99,57 @@ export default function Navbar({ activeScreen, setActiveScreen, currentUser, set
             {currentUser ? (
               // ALL PAGES UNLOCKED AFTER LOGIN & AUTHENTICATION
               <>
-                <option value="home">Home</option>
-                <option value="report">Report a Problem</option>
+                <option value="home">{t('home')}</option>
+                <option value="report">{t('reportProblem')}</option>
                 <option value="ai-result">AI Analysis Result</option>
-                <option value="challenges">Challenges Explorer</option>
+                <option value="challenges">{t('challenges')}</option>
                 <option value="university">University Dashboard</option>
                 <option value="industry">Industry Dashboard</option>
                 <option value="government">Government Dashboard</option>
-                <option value="workspace">Project Workspace</option>
-                <option value="impact">Impact</option>
-                <option value="about">About</option>
+                <option value="workspace">{t('workspace')}</option>
+                <option value="impact">{t('impact')}</option>
+                <option value="about">{t('about')}</option>
               </>
             ) : (
               // ONLY PUBLIC PAGES BEFORE AUTHENTICATION
               <>
-                <option value="home">Home</option>
-                <option value="signup">User Registration (Sign Up)</option>
-                <option value="login">Login (OTP Verify)</option>
-                <option value="impact">Impact</option>
-                <option value="about">About</option>
+                <option value="home">{t('home')}</option>
+                <option value="signup">{t('signUp')}</option>
+                <option value="login">{t('login')}</option>
+                <option value="impact">{t('impact')}</option>
+                <option value="about">{t('about')}</option>
               </>
             )}
           </select>
         </nav>
 
-        {/* Action Buttons & Auth State */}
+        {/* Action Buttons, Language Toggle & Auth State */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Language Switcher Button */}
+          <button
+            type="button"
+            onClick={toggleLanguage}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '7px 12px',
+              borderRadius: '8px',
+              border: '1.5px solid #CBD5E1',
+              backgroundColor: language === 'hi' ? '#EFF6FF' : '#F8FAFC',
+              color: language === 'hi' ? '#1D4ED8' : '#0F2C59',
+              fontSize: '13px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
+            }}
+            title={language === 'en' ? 'Switch to Hindi (हिंदी में बदलें)' : 'Switch to English'}
+          >
+            <Globe size={15} color={language === 'hi' ? '#1D4ED8' : '#16A34A'} />
+            <span>{language === 'en' ? '🇮🇳 हिंदी' : '🇬🇧 English'}</span>
+          </button>
+
           {currentUser ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span style={{ 
@@ -152,7 +180,7 @@ export default function Navbar({ activeScreen, setActiveScreen, currentUser, set
                 }}
               >
                 <LogOut size={14} />
-                Logout
+                {t('logout')}
               </button>
             </div>
           ) : (
@@ -162,14 +190,14 @@ export default function Navbar({ activeScreen, setActiveScreen, currentUser, set
                 className="btn btn-outline" 
                 style={{ padding: '8px 18px', fontSize: '13.5px' }}
               >
-                Login
+                {t('login')}
               </button>
               <button 
                 onClick={() => setActiveScreen('signup')}
                 className="btn btn-primary" 
                 style={{ padding: '8px 18px', fontSize: '13.5px' }}
               >
-                Sign Up
+                {t('signUp')}
               </button>
             </>
           )}
@@ -178,3 +206,4 @@ export default function Navbar({ activeScreen, setActiveScreen, currentUser, set
     </header>
   );
 }
+

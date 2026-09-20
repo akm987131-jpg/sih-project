@@ -104,24 +104,6 @@ export default function LoginPage({ setActiveScreen, setCurrentUser, pendingScre
     else setActiveScreen('home');
   };
 
-  // 1-Click Demo Login for Judges
-  const handleQuickDemoLogin = (role) => {
-    setSelectedRole(role);
-    const demoUsers = {
-      Citizen: { fullName: 'Ramesh Mahto (Farmer)', mobileNumber: '9876543210', role: 'Citizen' },
-      University: { fullName: 'Dr. R. K. Sharma (NIT Jamshedpur)', mobileNumber: '9876543211', role: 'University' },
-      Industry: { fullName: 'Pooja Verma (Tata Projects CSR)', mobileNumber: '9876543212', role: 'Industry' },
-      Government: { fullName: 'Amit Kumar IAS (District Collector)', mobileNumber: '9876543213', role: 'Government' },
-    };
-    const user = demoUsers[role];
-    if (onAuthSuccess) {
-      onAuthSuccess(user, pendingScreen);
-    } else {
-      setCurrentUser(user);
-      redirectAfterAuth(role);
-    }
-  };
-
   return (
     <div style={{ minHeight: 'calc(100vh - 150px)', display: 'flex', backgroundColor: '#F8FAFC' }}>
       <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px' }}>
@@ -326,24 +308,25 @@ export default function LoginPage({ setActiveScreen, setCurrentUser, pendingScre
                     fontSize: '12px'
                   }}>
                     <span style={{ color: '#1E3A8A', fontWeight: 600 }}>
-                      ⚡ Demo OTP Code: <strong style={{ letterSpacing: '1px' }}>{demoOtpCode}</strong>
+                      SMS Verification OTP: <strong style={{ letterSpacing: '1px' }}>{demoOtpCode}</strong>
                     </span>
                     <button
                       type="button"
                       onClick={() => setOtp(demoOtpCode)}
                       style={{
-                        backgroundColor: '#1E3A8A',
-                        color: '#FFFFFF',
                         border: 'none',
-                        borderRadius: '4px',
-                        padding: '2px 8px',
-                        fontSize: '11px',
+                        background: '#DCFCE7',
+                        color: '#15803D',
                         fontWeight: 700,
-                        cursor: 'pointer'
+                        padding: '3px 8px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '11px'
                       }}
                     >
                       Auto-Fill
                     </button>
+
                   </div>
                 </div>
 
@@ -359,36 +342,9 @@ export default function LoginPage({ setActiveScreen, setCurrentUser, pendingScre
               </form>
             )}
 
-            {/* Quick Demo One-Click Access for SIH Evaluation */}
-            <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px dashed #E2E8F0' }}>
-              <p style={{ fontSize: '11.5px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: '10px', textAlign: 'center' }}>
-                Instant Judge Demo Access (1-Click Bypass)
-              </p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center' }}>
-                {roles.map((r) => (
-                  <button
-                    key={r.id}
-                    type="button"
-                    onClick={() => handleQuickDemoLogin(r.id)}
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      padding: '4px 10px',
-                      borderRadius: '6px',
-                      backgroundColor: '#F1F5F9',
-                      color: '#0F2C59',
-                      border: '1px solid #CBD5E1',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Demo {r.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '13px', color: '#64748B' }}>
               New citizen or institution?{' '}
+
               <button 
                 onClick={() => setActiveScreen('signup')}
                 style={{ color: '#16A34A', fontWeight: 700, cursor: 'pointer' }}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { currentWorkspace } from '../data/mockData';
-import { updateWorkspaceTask, createWorkspace } from '../services/api';
+import { updateWorkspaceTask, createWorkspace, getWorkspaces } from '../services/api';
 import { CheckCircle2, Circle, Clock, Building, GraduationCap, Landmark, Users, ArrowRight, Upload, Plus, Sparkles } from 'lucide-react';
 
 export default function ProjectWorkspacePage({ setActiveScreen }) {
@@ -12,11 +12,10 @@ export default function ProjectWorkspacePage({ setActiveScreen }) {
 
   const loadWorkspace = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:5000/api/v1/workspaces');
-      const json = await res.json();
-      if (json.success && json.data && json.data.length > 0) {
-        setWorkspace(json.data[0]);
-        setTasks(json.data[0].tasks || []);
+      const data = await getWorkspaces();
+      if (Array.isArray(data) && data.length > 0) {
+        setWorkspace(data[0]);
+        setTasks(data[0].tasks || []);
       }
     } catch (err) {
       console.warn('Using local workspace');
@@ -27,29 +26,23 @@ export default function ProjectWorkspacePage({ setActiveScreen }) {
     loadWorkspace();
   }, []);
 
-  const handleSeedWorkspace = async () => {
-    const res = await createWorkspace({
-      title: 'Decentralized Arsenic Water Nano-Filtration Unit',
-      domain: 'Water & Sanitation',
-      location: 'Ranchi, Jharkhand',
-      leadInstitution: 'NIT Jamshedpur (4 NEP 2020 Credits)'
-    });
-    if (res.success && res.data) {
-      setWorkspace(res.data);
-      setTasks(res.data.tasks || []);
-      setProgressNotice('⚡ Collaborative Quad-Helix workspace successfully initialized!');
-    }
-  };
-
   const toggleTask = async (id) => {
-    const updated = tasks.map(t => t.id === id ? { ...t, done: !t.done } : t);
-    setTasks(updated);
-    const completedCount = updated.filter(t => t.done).length;
-    const pct = updated.length > 0 ? Math.round((completedCount / updated.length) * 100) : 0;
-    setProgressNotice(`Task status updated! Project milestone progress is now ${pct}%.`);
+    const updatedTasks = tasks.map(t => t.id === id ? { ...t, done: !t.done } : t);
+    setTasks(updatedTasks);
+    const completedCount = updatedTasks.filter(t => t.done).length;
+    const pct = updatedTasks.length > 0 ? Math.round((completedCount / updatedTasks.length) * 100) : 0;
+    
+    if (pct === 100) {
+      setProgressNotice(`🎉 100% Milestones Completed! Solution is now Fully Deployed.`);
+    } else {
+      setProgressNotice(`Task status updated! Project milestone progress is now ${pct}%.`);
+    }
 
     try {
-      await updateWorkspaceTask(workspace._id, id);
+      const updatedWs = await updateWorkspaceTask(workspace._id || workspace.id, id);
+      if (updatedWs) {
+        setWorkspace(updatedWs);
+      }
     } catch (err) {
       console.warn('Task updated locally in offline mode');
     }
@@ -70,6 +63,36 @@ export default function ProjectWorkspacePage({ setActiveScreen }) {
     setShowAddModal(false);
     setProgressNotice(`New milestone deliverable "${newTask.title}" added to sprint board!`);
   };
+
+  const computePhases = (currentTasks) => {
+    const list = currentTasks || [];
+    // Stage 1 tasks (Site study, literature, baseline research)
+    const s1 = list.filter(t => t.stage === 1 || t.date?.toLowerCase().includes('stage 1') || t.title?.toLowerCase().includes('study') || t.title?.toLowerCase().includes('inspection') || t.title?.toLowerCase().includes('research') || t.title?.toLowerCase().includes('feasibility'));
+    const s1Done = s1.length > 0 && s1.every(t => t.done);
+
+    // Stage 2 tasks (CAD, prototype, blueprint, fabrication)
+    const s2 = list.filter(t => t.stage === 2 || t.date?.toLowerCase().includes('stage 2') || t.title?.toLowerCase().includes('cad') || t.title?.toLowerCase().includes('prototype') || t.title?.toLowerCase().includes('blueprint') || t.title?.toLowerCase().includes('lab'));
+    const s2Done = s2.length > 0 && s2.every(t => t.done);
+
+    // Stage 3 tasks (Pilot testing, field trial, community demo)
+    const s3 = list.filter(t => t.stage === 3 || t.date?.toLowerCase().includes('stage 3') || t.title?.toLowerCase().includes('pilot') || t.title?.toLowerCase().includes('trial') || t.title?.toLowerCase().includes('testing'));
+    const s3Done = s3.length > 0 && s3.every(t => t.done);
+
+    // Stage 4 tasks (Deployment, handover, scale)
+    const s4 = list.filter(t => t.stage === 4 || t.date?.toLowerCase().includes('stage 4') || t.title?.toLowerCase().includes('deployment') || t.title?.toLowerCase().includes('handover') || t.title?.toLowerCase().includes('scale'));
+    const s4Done = s4.length > 0 && s4.every(t => t.done);
+
+    return [
+      { name: 'Research', status: s1Done ? 'completed' : 'in-progress' },
+      { name: 'Prototype', status: s2Done ? 'completed' : (s1Done ? 'in-progress' : 'pending') },
+      { name: 'Pilot', status: s3Done ? 'completed' : (s2Done ? 'in-progress' : 'pending') },
+      { name: 'Deployment', status: s4Done ? 'completed' : (s3Done ? 'in-progress' : 'pending') }
+    ];
+  };
+
+  const phases = computePhases(tasks);
+  const activePhase = phases.find(p => p.status === 'in-progress') || (phases.every(p => p.status === 'completed') ? { name: 'Fully Deployed' } : { name: 'Research' });
+  const activePhaseIndex = phases.findIndex(p => p.status === 'in-progress');
 
   const completedCount = (tasks || []).filter(t => t.done).length;
   const progressPercent = tasks && tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0;
@@ -93,8 +116,14 @@ export default function ProjectWorkspacePage({ setActiveScreen }) {
         }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-              <span className="badge badge-low" style={{ backgroundColor: '#DCFCE7', color: '#166534' }}>
-                {workspace.status || 'Active Collaborative Sprint'}
+              <span className="badge" style={{
+                backgroundColor: progressPercent === 100 ? '#DCFCE7' : '#EFF6FF',
+                color: progressPercent === 100 ? '#166534' : '#1E40AF',
+                fontWeight: 700
+              }}>
+                {progressPercent === 100 
+                  ? '✓ Deployment Ready' 
+                  : `Stage 0${(activePhaseIndex >= 0 ? activePhaseIndex : 0) + 1}: ${activePhase.name} (In Progress)`}
               </span>
               <span style={{ fontSize: '13px', color: '#64748B' }}>
                 📍 {workspace.location}
@@ -112,19 +141,9 @@ export default function ProjectWorkspacePage({ setActiveScreen }) {
             <div style={{ width: '180px', height: '8px', backgroundColor: '#E2E8F0', borderRadius: '9999px', overflow: 'hidden' }}>
               <div style={{ width: `${progressPercent}%`, height: '100%', backgroundColor: '#16A34A', borderRadius: '9999px', transition: 'width 0.3s ease' }} />
             </div>
-
-            {(!tasks || tasks.length === 0) && (
-              <button
-                onClick={handleSeedWorkspace}
-                className="btn btn-primary"
-                style={{ fontSize: '12px', padding: '6px 12px', marginTop: '10px', backgroundColor: '#16A34A' }}
-              >
-                <Sparkles size={14} />
-                ⚡ Demo: Start Sample Workspace
-              </button>
-            )}
           </div>
         </div>
+
 
         {progressNotice && (
           <div style={{
@@ -155,25 +174,21 @@ export default function ProjectWorkspacePage({ setActiveScreen }) {
             gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
             gap: '12px'
           }}>
-            {(workspace.phases || [
-              { name: 'Research', status: 'completed' },
-              { name: 'Prototype', status: 'in-progress' },
-              { name: 'Pilot', status: 'pending' },
-              { name: 'Deployment', status: 'pending' }
-            ]).map((p, idx) => (
+            {phases.map((p, idx) => (
               <div 
                 key={p.name}
                 style={{
                   padding: '14px',
                   borderRadius: '10px',
                   backgroundColor: p.status === 'completed' ? '#F0FDF4' : p.status === 'in-progress' ? '#EFF6FF' : '#F8FAFC',
-                  border: p.status === 'in-progress' ? '2px solid #2563EB' : '1px solid #E2E8F0',
-                  textAlign: 'center'
+                  border: p.status === 'in-progress' ? '2px solid #2563EB' : p.status === 'completed' ? '1px solid #86EFAC' : '1px solid #E2E8F0',
+                  textAlign: 'center',
+                  transition: 'all 0.2s ease'
                 }}
               >
                 <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748B', marginBottom: '2px' }}>STAGE 0{idx + 1}</div>
                 <div style={{ fontSize: '13.5px', fontWeight: 800, color: '#0F2C59' }}>{p.name}</div>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: p.status === 'completed' ? '#16A34A' : p.status === 'in-progress' ? '#2563EB' : '#94A3B8', marginTop: '4px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: p.status === 'completed' ? '#16A34A' : p.status === 'in-progress' ? '#2563EB' : '#94A3B8', marginTop: '4px' }}>
                   {p.status === 'completed' ? '✓ Completed' : p.status === 'in-progress' ? '● In Progress' : 'Pending'}
                 </div>
               </div>
@@ -283,18 +298,12 @@ export default function ProjectWorkspacePage({ setActiveScreen }) {
                 <div style={{ fontSize: '15px', fontWeight: 700, color: '#0F2C59', marginBottom: '6px' }}>
                   No Tasks Currently Scheduled
                 </div>
-                <p style={{ fontSize: '13px', maxWidth: '420px', margin: '0 auto 14px auto' }}>
-                  Click below to populate sample deliverables or add your first research task.
+                <p style={{ fontSize: '13px', maxWidth: '420px', margin: '0 auto' }}>
+                  Click "+ Add Milestone Deliverable" above to schedule your first sprint task.
                 </p>
-                <button
-                  onClick={handleSeedWorkspace}
-                  className="btn btn-primary"
-                  style={{ fontSize: '12.5px', padding: '8px 16px' }}
-                >
-                  ⚡ Start Sample Sprint
-                </button>
               </div>
             ) : (
+
               tasks.map((t) => (
                 <div 
                   key={t.id}

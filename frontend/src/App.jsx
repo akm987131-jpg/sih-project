@@ -21,6 +21,23 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [latestReport, setLatestReport] = useState(null);
   const [pendingScreen, setPendingScreen] = useState(null);
+  const [language, setLanguage] = useState(() => {
+    try {
+      return localStorage.getItem('samadhansetu_lang') || 'en';
+    } catch {
+      return 'en';
+    }
+  });
+
+  const toggleLanguage = () => {
+    const nextLang = language === 'en' ? 'hi' : 'en';
+    setLanguage(nextLang);
+    try {
+      localStorage.setItem('samadhansetu_lang', nextLang);
+    } catch (e) {
+      console.warn('Storage save error:', e);
+    }
+  };
 
   // Dashboards that require institutional login
   const institutionalPortals = ['university', 'industry', 'government', 'workspace'];
@@ -65,13 +82,14 @@ export default function App() {
           pendingScreen={activeScreen}
           setPendingScreen={setPendingScreen}
           onAuthSuccess={handleAuthSuccess}
+          language={language}
         />
       );
     }
 
     switch (activeScreen) {
       case 'home':
-        return <HomePage setActiveScreen={navigateTo} currentUser={currentUser} />;
+        return <HomePage setActiveScreen={navigateTo} currentUser={currentUser} language={language} />;
       case 'signup':
         return (
           <SignUpPage 
@@ -80,6 +98,7 @@ export default function App() {
             pendingScreen={pendingScreen}
             setPendingScreen={setPendingScreen}
             onAuthSuccess={handleAuthSuccess}
+            language={language}
           />
         );
       case 'login':
@@ -90,6 +109,7 @@ export default function App() {
             pendingScreen={pendingScreen}
             setPendingScreen={setPendingScreen}
             onAuthSuccess={handleAuthSuccess}
+            language={language}
           />
         );
       case 'report':
@@ -100,26 +120,27 @@ export default function App() {
             currentUser={currentUser} 
             setCurrentUser={setCurrentUser} 
             onAuthSuccess={handleAuthSuccess}
+            language={language}
           />
         );
       case 'ai-result':
-        return <AiResultPage setActiveScreen={navigateTo} latestReport={latestReport} />;
+        return <AiResultPage setActiveScreen={navigateTo} latestReport={latestReport} language={language} />;
       case 'challenges':
-        return <ChallengesExplorerPage setActiveScreen={navigateTo} currentUser={currentUser} />;
+        return <ChallengesExplorerPage setActiveScreen={navigateTo} currentUser={currentUser} language={language} />;
       case 'university':
-        return <UniversityDashboardPage setActiveScreen={navigateTo} />;
+        return <UniversityDashboardPage setActiveScreen={navigateTo} language={language} />;
       case 'industry':
-        return <IndustryDashboardPage setActiveScreen={navigateTo} />;
+        return <IndustryDashboardPage setActiveScreen={navigateTo} language={language} />;
       case 'government':
-        return <GovernmentDashboardPage setActiveScreen={navigateTo} />;
+        return <GovernmentDashboardPage setActiveScreen={navigateTo} language={language} />;
       case 'workspace':
-        return <ProjectWorkspacePage setActiveScreen={navigateTo} />;
+        return <ProjectWorkspacePage setActiveScreen={navigateTo} language={language} />;
       case 'impact':
-        return <ImpactPage setActiveScreen={navigateTo} />;
+        return <ImpactPage setActiveScreen={navigateTo} language={language} />;
       case 'about':
-        return <AboutPage setActiveScreen={navigateTo} />;
+        return <AboutPage setActiveScreen={navigateTo} language={language} />;
       default:
-        return <HomePage setActiveScreen={navigateTo} currentUser={currentUser} />;
+        return <HomePage setActiveScreen={navigateTo} currentUser={currentUser} language={language} />;
     }
   };
 
@@ -130,6 +151,8 @@ export default function App() {
         setActiveScreen={navigateTo} 
         currentUser={currentUser}
         setCurrentUser={setCurrentUser}
+        language={language}
+        toggleLanguage={toggleLanguage}
       />
       
       <main className="main-content">

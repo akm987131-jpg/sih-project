@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LayoutDashboard, Compass, FolderKanban, Users, GraduationCap, Library, MessageSquare, ArrowRight, CheckCircle2, Award, Sparkles, RotateCcw } from 'lucide-react';
-import { getChallenges, createWorkspace, seedChallenges, resetAllData } from '../services/api';
+import { getChallenges, getWorkspaces, createWorkspace, resetAllData, universityApplyToChallenge } from '../services/api';
 
 export default function UniversityDashboardPage({ setActiveScreen }) {
   const [activeTab, setActiveTab] = useState('Dashboard');
@@ -15,11 +15,8 @@ export default function UniversityDashboardPage({ setActiveScreen }) {
       const chalRes = await getChallenges();
       setChallenges(chalRes || []);
 
-      const wsRes = await fetch('http://127.0.0.1:5000/api/v1/workspaces');
-      const wsJson = await wsRes.json();
-      if (wsJson.success && wsJson.data) {
-        setOngoingProjects(wsJson.data);
-      }
+      const wsList = await getWorkspaces();
+      setOngoingProjects(wsList || []);
     } catch (err) {
       console.warn('Using local university state');
     } finally {
@@ -31,30 +28,48 @@ export default function UniversityDashboardPage({ setActiveScreen }) {
     loadUniversityData();
   }, []);
 
-  const handleSeed = async () => {
-    setIsLoading(true);
-    await seedChallenges();
-    await loadUniversityData();
-    setAcceptedNotice('⚡ Sample community challenges seeded! Academic matchmaking algorithm found high-confidence matches.');
+  // Helper: check if a challenge is eligible for university adoption
+
+  // Rule: University can take project if Government Sanctioned it OR Government Approved it AND Industry Funded it
+  const isEligibleForUniversity = (c) => {
+    if (c.status === 'Sanctioned') return true;
+    if (c.status === 'Approved' && (c.isIndustryFunded || (c.fundingSources && c.fundingSources.length > 0))) return true;
+    return false;
+  };
+
+  // Helper: check if challenge is approved by government but waiting for industry sponsor
+  const isAwaitingIndustryFunding = (c) => {
+    return c.status === 'Approved' && !c.isIndustryFunded && (!c.fundingSources || c.fundingSources.length === 0);
   };
 
   const handleAcceptChallenge = async (challenge) => {
     try {
-      const res = await createWorkspace({
+      // Step 1: Register this university as taking up the challenge (updates status to University Matched)
+      await universityApplyToChallenge(challenge._id || challenge.id, 'NIT Jamshedpur');
+
+      // Step 2: Create a project workspace for tracking development
+      await createWorkspace({
         title: challenge.title,
         domain: challenge.domain,
         location: `${challenge.district || 'Ranchi'}, Jharkhand`,
         leadInstitution: 'NIT Jamshedpur (4 NEP 2020 Credits Assigned)'
       });
-      setAcceptedNotice(`Challenge "${challenge.title}" accepted! Project workspace initialized with 4 NEP 2020 Credits.`);
+
+      const qualification = challenge.status === 'Sanctioned'
+        ? 'Government Sanction'
+        : `Government Approval + Industry Grant (${challenge.industrySponsor || 'CSR'})`;
+
+      setAcceptedNotice(`Challenge "${challenge.title}" accepted! Qualified via: ${qualification}. Status updated to University Matched.`);
       await loadUniversityData();
       setTimeout(() => {
         setActiveScreen('workspace');
       }, 1200);
     } catch (err) {
+      console.warn('Apply error:', err);
       setActiveScreen('workspace');
     }
   };
+
 
   const sidebarLinks = [
     { id: 'Dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -162,23 +177,6 @@ export default function UniversityDashboardPage({ setActiveScreen }) {
 
           <div style={{ display: 'flex', gap: '10px' }}>
             <button
-              onClick={handleSeed}
-              disabled={isLoading}
-              className="btn btn-primary"
-              style={{
-                fontSize: '12.5px',
-                padding: '8px 16px',
-                backgroundColor: '#16A34A',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              <Sparkles size={15} />
-              ⚡ Demo: Add Sample Challenges
-            </button>
-
-            <button
               onClick={() => setActiveScreen('report')}
               className="btn btn-outline"
               style={{ fontSize: '12.5px', padding: '8px 14px', color: '#FFFFFF', borderColor: '#475569' }}
@@ -210,46 +208,58 @@ export default function UniversityDashboardPage({ setActiveScreen }) {
         {/* TAB 1: DASHBOARD or RECOMMENDED */}
         {(activeTab === 'Dashboard' || activeTab === 'Recommended') && (
           <div>
+            {/* Header info */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
               <div>
                 <h2 style={{ fontSize: '19px', fontWeight: 800, color: '#0F2C59' }}>
-                  Recommended Challenges for Your Department ({challenges.length})
+                  Available Challenges Open for Universities ({challenges.filter(isEligibleForUniversity).length})
                 </h2>
                 <p style={{ fontSize: '13px', color: '#64748B' }}>
-                  AI Matchmaking based on institutional patents, faculty publications, and lab equipment.
+                  Universities can take up projects that are officially <strong>Government Sanctioned</strong> OR <strong>Government Approved with Industry Funding</strong>.
                 </p>
               </div>
             </div>
 
-            {challenges.length === 0 ? (
+            {challenges.filter(isEligibleForUniversity).length === 0 ? (
               <div className="card" style={{ padding: '40px 24px', textAlign: 'center', marginBottom: '32px' }}>
                 <Compass size={32} color="#1E3A8A" style={{ margin: '0 auto 12px auto' }} />
                 <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#0F2C59', marginBottom: '6px' }}>
-                  No Challenges Currently Listed
+                  No Eligible Challenges Available Right Now
                 </h3>
-                <p style={{ fontSize: '13px', color: '#64748B', maxWidth: '440px', margin: '0 auto 16px auto' }}>
-                  Click the button below to populate realistic challenges from Jharkhand districts to test student claim and prototype flows.
+                <p style={{ fontSize: '13px', color: '#64748B', maxWidth: '480px', margin: '0 auto 16px auto' }}>
+                  Challenges become available here when either: (1) Government officially Sanctions them, or (2) Government Approves them and Industry provides CSR grant funding.
                 </p>
-                <button onClick={handleSeed} className="btn btn-primary" style={{ fontSize: '13px', padding: '8px 18px' }}>
-                  ⚡ Seed Sample Challenges
-                </button>
               </div>
             ) : (
+
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
                 gap: '20px',
                 marginBottom: '36px'
               }}>
-                {challenges.map((ch) => (
-                  <div key={ch._id || ch.id} className="card" style={{ padding: '22px', borderTop: '4px solid #1E3A8A' }}>
+              {challenges.filter(isEligibleForUniversity).map((ch) => {
+                const isSanctioned = ch.status === 'Sanctioned';
+                return (
+                  <div key={ch._id || ch.id} className="card" style={{ padding: '22px', borderTop: isSanctioned ? '4px solid #0D9488' : '4px solid #7C3AED' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                       <span className="badge badge-low" style={{ backgroundColor: '#EFF6FF', color: '#1E3A8A' }}>
                         {ch.domain}
                       </span>
-                      <span className={`badge badge-${(ch.priority || 'Medium').toLowerCase()}`}>
-                        {ch.priority} Priority
-                      </span>
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        {isSanctioned ? (
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#0D9488', backgroundColor: '#F0FDFA', padding: '2px 8px', borderRadius: '4px', border: '1px solid #99F6E4' }}>
+                            🏛 Government Sanctioned
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#7C3AED', backgroundColor: '#F5F3FF', padding: '2px 8px', borderRadius: '4px', border: '1px solid #DDD6FE' }}>
+                            🤝 Approved + Industry Funded
+                          </span>
+                        )}
+                        <span className={`badge badge-${(ch.priority || 'Medium').toLowerCase()}`}>
+                          {ch.priority} Priority
+                        </span>
+                      </div>
                     </div>
 
                     <h3 style={{ fontSize: '16.5px', fontWeight: 800, color: '#0F2C59', marginBottom: '8px' }}>
@@ -258,9 +268,26 @@ export default function UniversityDashboardPage({ setActiveScreen }) {
                     <p style={{ fontSize: '13px', color: '#475569', lineHeight: 1.45, marginBottom: '12px' }}>
                       {ch.description}
                     </p>
-                    <p style={{ fontSize: '12px', color: '#64748B', marginBottom: '16px' }}>
-                      <strong>Suggested Expertise:</strong> {ch.suggestedExpertise || 'Mechanical & Electrical Engineering'}
-                    </p>
+
+                    {/* Funding / Sponsor Tag */}
+                    <div style={{
+                      backgroundColor: '#F8FAFC',
+                      border: '1px solid #E2E8F0',
+                      borderRadius: '8px',
+                      padding: '10px 12px',
+                      fontSize: '12px',
+                      color: '#475569',
+                      marginBottom: '14px'
+                    }}>
+                      {isSanctioned ? (
+                        <div><strong>Funding:</strong> Government Sanctioned Research & Innovation Grant</div>
+                      ) : (
+                        <div><strong>Industry Sponsor:</strong> {ch.industrySponsor || (ch.fundingSources && ch.fundingSources[0]) || 'Tata Projects CSR'} ({ch.industryFundingAmount || '₹14,50,000'})</div>
+                      )}
+                      <div style={{ marginTop: '4px', color: '#64748B' }}>
+                        <strong>Suggested Expertise:</strong> {ch.suggestedExpertise || 'Mechanical & Electrical Engineering'}
+                      </div>
+                    </div>
 
                     <div style={{ display: 'flex', gap: '10px' }}>
                       <button 
@@ -279,9 +306,52 @@ export default function UniversityDashboardPage({ setActiveScreen }) {
                       </button>
                     </div>
                   </div>
-                ))}
+                );
+              })}
               </div>
             )}
+
+            {/* Section: Challenges Approved by Govt but Awaiting Industry Funding */}
+            {challenges.filter(isAwaitingIndustryFunding).length > 0 && (
+              <div style={{ marginBottom: '36px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                  <h3 style={{ fontSize: '17px', fontWeight: 800, color: '#0F2C59' }}>
+                    Government-Approved Challenges Awaiting Industry Funding ({challenges.filter(isAwaitingIndustryFunding).length})
+                  </h3>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#D97706', backgroundColor: '#FFFBEB', border: '1px solid #FDE68A', padding: '2px 8px', borderRadius: '4px' }}>
+                    CSR Pending
+                  </span>
+                </div>
+                <p style={{ fontSize: '12.5px', color: '#64748B', marginBottom: '14px' }}>
+                  These challenges have been verified and approved by Government Officers as authentic problems. They are currently listed in the Industry CSR Portal. Once an industry partner pledges funding, they will unlock here for university student teams.
+                </p>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+                  {challenges.filter(isAwaitingIndustryFunding).map((ch) => (
+                    <div key={ch._id || ch.id} className="card" style={{ padding: '18px', backgroundColor: '#F8FAFC', border: '1px dashed #CBD5E1' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#2563EB', backgroundColor: '#EFF6FF', padding: '2px 8px', borderRadius: '4px' }}>
+                          {ch.domain}
+                        </span>
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#16A34A', backgroundColor: '#F0FDF4', padding: '2px 8px', borderRadius: '4px', border: '1px solid #BBF7D0' }}>
+                          ✓ Government Approved
+                        </span>
+                      </div>
+                      <h4 style={{ fontSize: '15px', fontWeight: 800, color: '#0F2C59', marginBottom: '6px' }}>
+                        {ch.title}
+                      </h4>
+                      <p style={{ fontSize: '12px', color: '#64748B', marginBottom: '10px', lineHeight: 1.4 }}>
+                        {ch.description}
+                      </p>
+                      <div style={{ fontSize: '11.5px', color: '#D97706', fontWeight: 600 }}>
+                        ⏳ Waiting for Industry CSR Partner to pledge grant before University can adopt.
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
 
             {/* Section 2: Active Student Projects */}
             <div>

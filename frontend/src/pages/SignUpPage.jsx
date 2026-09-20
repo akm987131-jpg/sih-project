@@ -27,13 +27,28 @@ export default function SignUpPage({ setActiveScreen, setCurrentUser, pendingScr
     setErrorMessage('');
     const cleanDigits = mobileNumber.replace(/\D/g, '');
 
-    if (!fullName.trim()) {
-      setErrorMessage('Please enter your full name');
+    if (!fullName || !fullName.trim()) {
+      setErrorMessage('Please enter your Full Name before requesting OTP.');
       return;
     }
 
-    if (cleanDigits.length < 10) {
-      setErrorMessage('Please enter a valid 10-digit mobile number');
+    if (fullName.trim().length < 2) {
+      setErrorMessage('Full Name must be at least 2 characters.');
+      return;
+    }
+
+    if (selectedRole !== 'Citizen' && (!organization || !organization.trim())) {
+      setErrorMessage(`Please enter your ${selectedRole === 'University' ? 'Institution / University' : selectedRole === 'Industry' ? 'Company / Corporate' : 'Government Department'} name before requesting OTP.`);
+      return;
+    }
+
+    if (!cleanDigits || cleanDigits.length !== 10) {
+      setErrorMessage('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+
+    if (!/^[6-9]\d{9}$/.test(cleanDigits)) {
+      setErrorMessage('Please enter a valid 10-digit mobile number starting with 6, 7, 8, or 9.');
       return;
     }
 
@@ -276,8 +291,8 @@ export default function SignUpPage({ setActiveScreen, setCurrentUser, pendingScr
 
                 {selectedRole !== 'Citizen' && (
                   <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-                      Institution / Department Name
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                      {selectedRole === 'University' ? 'University / Institution Name' : selectedRole === 'Industry' ? 'Company / Corporate Name' : 'Government Department / Office'} <span style={{ color: '#DC2626' }}>*</span>
                     </label>
                     <input 
                       type="text" 
@@ -292,6 +307,7 @@ export default function SignUpPage({ setActiveScreen, setCurrentUser, pendingScr
                         border: '1px solid #CBD5E1',
                         outline: 'none'
                       }}
+                      required
                     />
                   </div>
                 )}
@@ -359,7 +375,7 @@ export default function SignUpPage({ setActiveScreen, setCurrentUser, pendingScr
                     fontSize: '12px'
                   }}>
                     <span style={{ color: '#1E3A8A', fontWeight: 600 }}>
-                      ⚡ Demo OTP Code: <strong style={{ letterSpacing: '1px' }}>{demoOtpCode}</strong>
+                      SMS Verification OTP: <strong style={{ letterSpacing: '1px' }}>{demoOtpCode}</strong>
                     </span>
                     <button
                       type="button"
@@ -377,6 +393,7 @@ export default function SignUpPage({ setActiveScreen, setCurrentUser, pendingScr
                     >
                       Auto-Fill
                     </button>
+
                   </div>
                 </div>
 

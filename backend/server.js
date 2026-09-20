@@ -8,6 +8,8 @@ import authRoutes from './routes/auth.js';
 import challengeRoutes from './routes/challenges.js';
 import workspaceRoutes from './routes/workspaces.js';
 import statsRoutes from './routes/stats.js';
+import auditLogRoutes from './routes/auditlogs.js';
+
 
 dotenv.config();
 
@@ -22,8 +24,8 @@ app.use(cors({
   origin: '*', // Allow all origins during development & hackathon demo
   methods: ['GET', 'POST', 'PATCH', 'DELETE'],
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Root Route & Health Check
 app.get('/', (req, res) => {
@@ -53,6 +55,8 @@ app.use('/api/v1/projects', workspaceRoutes); // Rule 4 compliant projects route
 app.use('/api/v1/stats', statsRoutes);
 app.use('/api/v1/gov', statsRoutes);
 app.use('/api/v1/impact', statsRoutes);
+app.use('/api/v1/audit-logs', auditLogRoutes);
+
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {

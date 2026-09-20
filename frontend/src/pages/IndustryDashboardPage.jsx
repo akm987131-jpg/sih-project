@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Briefcase, Handshake, HeartHandshake, Award, MessageSquare, CheckCircle2, DollarSign, Building, Sparkles } from 'lucide-react';
-import { getChallenges, seedChallenges } from '../services/api';
+import { LayoutDashboard, Briefcase, Handshake, HeartHandshake, Award, MessageSquare, CheckCircle2, DollarSign, Building, Sparkles, ShieldCheck } from 'lucide-react';
+import { getChallenges, industryFundChallenge } from '../services/api';
 
 export default function IndustryDashboardPage({ setActiveScreen }) {
   const [activeTab, setActiveTab] = useState('Opportunities');
@@ -12,16 +12,27 @@ export default function IndustryDashboardPage({ setActiveScreen }) {
   const loadOpportunities = async () => {
     try {
       setIsLoading(true);
-      const chalRes = await getChallenges();
+      // Fetch only challenges eligible for industry (government verified & approved)
+      const chalRes = await getChallenges({ forIndustry: 'true' });
       if (chalRes && chalRes.length > 0) {
-        const opps = chalRes.map((c, idx) => ({
+        // Strict Gate: Don't show project to industry until government approved it as real
+        const validStatuses = ['Approved', 'Sanctioned', 'University Matched', 'In Development', 'Pilot', 'Deployed'];
+        const approvedChallenges = chalRes.filter(c => validStatuses.includes(c.status));
+
+        const opps = approvedChallenges.map((c, idx) => ({
           id: c._id || idx + 1,
           title: c.title,
           domain: c.domain || 'Technology',
-          university: 'NIT Jamshedpur Innovation Lab',
+          status: c.status,
+          district: c.district || 'Ranchi',
           location: `${c.district || 'Ranchi'}, Jharkhand`,
-          fundingGoal: idx === 0 ? '₹15,00,000' : idx === 1 ? '₹8,50,000' : '₹12,00,000',
-          need: `Micro-grant for prototype components, IoT hardware telemetry, and district field trial logistics.`
+          governmentOfficer: c.governmentOfficer || 'District Collector',
+          governmentNote: c.governmentNote || 'Verified authentic grassroots problem by government department.',
+          university: c.universityName || (c.status === 'University Matched' ? 'NIT Jamshedpur Innovation Lab' : 'Seeking University Team'),
+          fundingGoal: c.industryFundingAmount || (idx === 0 ? '₹14,50,000' : idx === 1 ? '₹12,00,000' : '₹8,50,000'),
+          need: c.description || `Micro-grant for prototype components, IoT hardware telemetry, and district field trial logistics.`,
+          isIndustryFunded: Boolean(c.isIndustryFunded || (c.fundingSources && c.fundingSources.length > 0)),
+          industrySponsor: c.industrySponsor || (c.fundingSources && c.fundingSources.length > 0 ? c.fundingSources[0] : ''),
         }));
         setOpportunities(opps);
       } else {
@@ -38,17 +49,33 @@ export default function IndustryDashboardPage({ setActiveScreen }) {
     loadOpportunities();
   }, []);
 
-  const handleSeed = async () => {
-    setIsLoading(true);
-    await seedChallenges();
-    await loadOpportunities();
-    setPledgedProject({ title: 'Sample CSR Pipeline', goal: 'Ready' });
+
+  const handlePledge = async (opp) => {
+    try {
+      setIsLoading(true);
+      const grantAmount = opp.fundingGoal || '₹12,00,000';
+      const sponsor = 'Tata Projects CSR';
+      
+      // Persist to backend database / in-memory store
+      await industryFundChallenge(opp.id || opp._id, sponsor, grantAmount);
+
+      setPledgedProject({
+        title: opp.title,
+        goal: grantAmount,
+        sponsor: sponsor,
+      });
+      setSponsoredList(prev => [
+        { title: opp.title, goal: grantAmount, date: new Date().toLocaleDateString(), sponsor },
+        ...prev,
+      ]);
+      await loadOpportunities();
+    } catch (err) {
+      console.error('Pledge error:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handlePledge = (title, goal) => {
-    setPledgedProject({ title, goal });
-    setSponsoredList(prev => [...prev, { title, goal, date: new Date().toLocaleDateString() }]);
-  };
 
   const sidebarLinks = [
     { id: 'Opportunities', label: 'Opportunities', icon: Briefcase },
@@ -148,22 +175,6 @@ export default function IndustryDashboardPage({ setActiveScreen }) {
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
-            <button
-              onClick={handleSeed}
-              disabled={isLoading}
-              className="btn btn-primary"
-              style={{
-                fontSize: '12.5px',
-                padding: '8px 16px',
-                backgroundColor: '#7C3AED',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              <Sparkles size={15} />
-              ⚡ Demo: Add Sample Opportunities
-            </button>
           </div>
         </div>
 
@@ -201,22 +212,39 @@ export default function IndustryDashboardPage({ setActiveScreen }) {
         {/* TAB 1: OPPORTUNITIES */}
         {activeTab === 'Opportunities' && (
           <div>
+            {/* Government Verification Gate Notice */}
+            <div style={{
+              backgroundColor: '#F0FDF4',
+              border: '1px solid #BBF7D0',
+              borderRadius: '10px',
+              padding: '12px 18px',
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              fontSize: '13px',
+              color: '#166534'
+            }}>
+              <ShieldCheck size={20} color="#16A34A" style={{ flexShrink: 0 }} />
+              <div>
+                <strong>Strict Verification Protocol Active:</strong> Industry CSR partners are only shown challenges that have been verified and approved by Government Officers as authentic problems. Unverified citizen reports remain in the Government Verification Queue.
+              </div>
+            </div>
+
             {opportunities.length === 0 ? (
               <div className="card" style={{ padding: '50px 32px', textAlign: 'center', marginBottom: '40px' }}>
                 <div style={{ width: '48px', height: '48px', borderRadius: '9999px', backgroundColor: '#F5F3FF', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px auto', color: '#7C3AED' }}>
                   <Briefcase size={24} />
                 </div>
                 <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#0F2C59', marginBottom: '6px' }}>
-                  No CSR Sponsorship Opportunities Listed Yet
+                  No Government-Approved CSR Opportunities Listed Yet
                 </h3>
                 <p style={{ fontSize: '13.5px', color: '#64748B', maxWidth: '440px', margin: '0 auto 16px auto' }}>
-                  Click below to populate live challenges with university teams seeking industry co-sponsorship.
+                  Problems must first be approved by a Government Officer in the Verification Queue before appearing here.
                 </p>
-                <button onClick={handleSeed} className="btn btn-primary" style={{ fontSize: '13px', backgroundColor: '#7C3AED' }}>
-                  ⚡ Seed Sample Opportunities
-                </button>
               </div>
             ) : (
+
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
@@ -225,7 +253,7 @@ export default function IndustryDashboardPage({ setActiveScreen }) {
               }}>
                 {opportunities.map((opp) => (
                   <div key={opp.id} className="card" style={{ padding: '26px', borderTop: '4px solid #7C3AED' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                       <span style={{ fontSize: '12px', fontWeight: 700, color: '#7C3AED', backgroundColor: '#F5F3FF', padding: '3px 10px', borderRadius: '4px' }}>
                         {opp.domain}
                       </span>
@@ -234,11 +262,55 @@ export default function IndustryDashboardPage({ setActiveScreen }) {
                       </span>
                     </div>
 
+                    {/* Government Verification Trust Badge */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
+                      <span style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        color: '#16A34A',
+                        backgroundColor: '#F0FDF4',
+                        border: '1px solid #BBF7D0',
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}>
+                        <ShieldCheck size={13} />
+                        ✓ Government Approved (Real & Verified)
+                      </span>
+                      {opp.isIndustryFunded ? (
+                        <span style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          color: '#7C3AED',
+                          backgroundColor: '#F5F3FF',
+                          border: '1px solid #DDD6FE',
+                          padding: '2px 8px',
+                          borderRadius: '4px'
+                        }}>
+                          🤝 CSR Funded ({opp.industrySponsor || 'Tata Projects'})
+                        </span>
+                      ) : (
+                        <span style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          color: '#D97706',
+                          backgroundColor: '#FFFBEB',
+                          border: '1px solid #FDE68A',
+                          padding: '2px 8px',
+                          borderRadius: '4px'
+                        }}>
+                          ⏳ Awaiting CSR Sponsor
+                        </span>
+                      )}
+                    </div>
+
                     <h3 style={{ fontSize: '17px', fontWeight: 800, color: '#0F2C59', marginBottom: '6px' }}>
                       {opp.title}
                     </h3>
-                    <p style={{ fontSize: '13px', color: '#64748B', marginBottom: '14px' }}>
-                      Led by <strong>{opp.university}</strong> • Location: {opp.location}
+                    <p style={{ fontSize: '13px', color: '#64748B', marginBottom: '12px' }}>
+                      Team: <strong>{opp.university}</strong> • Location: {opp.location}
                     </p>
 
                     <div style={{
@@ -250,7 +322,7 @@ export default function IndustryDashboardPage({ setActiveScreen }) {
                       color: '#475569',
                       marginBottom: '18px'
                     }}>
-                      <strong>Support Needed:</strong> {opp.need}
+                      <strong>Problem & Scope:</strong> {opp.need}
                     </div>
 
                     <div style={{ display: 'flex', gap: '10px' }}>
@@ -262,11 +334,17 @@ export default function IndustryDashboardPage({ setActiveScreen }) {
                         Details
                       </button>
                       <button 
-                        onClick={() => handlePledge(opp.title, opp.fundingGoal)}
+                        onClick={() => handlePledge(opp)}
+                        disabled={isLoading}
                         className="btn btn-primary" 
-                        style={{ flex: 1, padding: '9px', fontSize: '12.5px', backgroundColor: '#7C3AED' }}
+                        style={{
+                          flex: 1,
+                          padding: '9px',
+                          fontSize: '12.5px',
+                          backgroundColor: opp.isIndustryFunded ? '#16A34A' : '#7C3AED'
+                        }}
                       >
-                        Pledge Grant
+                        {opp.isIndustryFunded ? '✓ Grant Pledged' : `Pledge ${opp.fundingGoal}`}
                       </button>
                     </div>
                   </div>
@@ -275,6 +353,7 @@ export default function IndustryDashboardPage({ setActiveScreen }) {
             )}
           </div>
         )}
+
 
         {/* TAB 2: CSR DASHBOARD (Summary) */}
         {activeTab === 'Dashboard' && (

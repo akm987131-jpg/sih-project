@@ -1,8 +1,51 @@
-import React from 'react';
-import { platformStats, journeySteps } from '../data/mockData';
+import React, { useState, useEffect } from 'react';
+import { journeySteps } from '../data/mockData';
+import { getPlatformStats } from '../services/api';
+import { translations } from '../data/translations';
 import { ArrowRight, CheckCircle2, ShieldAlert, Sparkles, MapPin } from 'lucide-react';
 
-export default function HomePage({ setActiveScreen }) {
+export default function HomePage({ setActiveScreen, language = 'en' }) {
+  const t = (key) => translations[language]?.[key] || translations['en']?.[key] || key;
+
+  const [stats, setStats] = useState({
+    reportsReceived: '0',
+    challengesIdentified: '0',
+    projectsInProgress: '0',
+    solutionsDeployed: '0',
+    peopleBenefited: '0'
+  });
+
+  const hindiJourneySteps = [
+    { step: 1, title: "नागरिक", subtitle: "समस्या रिपोर्ट करें", color: "#2563EB", desc: "नागरिक टेक्स्ट, फोटो, जीपीएस या वॉइस नोट के माध्यम से स्थानीय मुद्दे दर्ज करते हैं।" },
+    { step: 2, title: "एआई", subtitle: "समझे और समूहीकृत करे", color: "#16A34A", desc: "एआई प्रमाणिकता जांचता है, डुप्लिकेट हटाता है और गंभीरता तय करता है।" },
+    { step: 3, title: "विश्वविद्यालय", subtitle: "समाधान बनाएं", color: "#0D9488", desc: "छात्र व शिक्षक प्रोटोटाइप विकसित करते हैं और NEP 2020 क्रेडिट पाते हैं।" },
+    { step: 4, title: "उद्योग", subtitle: "अनुदान और सहयोग", color: "#EA580C", desc: "उद्योग व CSR भागीदार फंड और तकनीकी मार्गदर्शन प्रदान करते हैं।" },
+    { step: 5, title: "सरकार", subtitle: "मंजूरी और क्रियान्वयन", color: "#1E3A8A", desc: "जिला प्रशासन फील्ड परीक्षण और आधिकारिक स्वीकृति प्रदान करता है।" },
+    { step: 6, title: "प्रभाव", subtitle: "बेहतर भविष्य", color: "#DC2626", desc: "सत्यापित समाधान की तैनाती, IoT निगरानी और नागरिक को समाधान सूचना।" }
+  ];
+
+  const activeSteps = language === 'hi' ? hindiJourneySteps : journeySteps;
+
+  useEffect(() => {
+    async function loadStats() {
+      try {
+        const live = await getPlatformStats();
+        if (live) {
+          setStats({
+            reportsReceived: live.reportsReceived || '0',
+            challengesIdentified: live.challengesIdentified || '0',
+            projectsInProgress: live.projectsInProgress || '0',
+            solutionsDeployed: live.solutionsDeployed || '0',
+            peopleBenefited: live.peopleBenefited || '0'
+          });
+        }
+      } catch (err) {
+        console.warn('Using local stats fallback');
+      }
+    }
+    loadStats();
+  }, []);
+
   return (
     <div>
       {/* Hero Section */}
@@ -34,7 +77,7 @@ export default function HomePage({ setActiveScreen }) {
               marginBottom: '20px'
             }}>
               <Sparkles size={15} />
-              Stronger Communities, Brighter India
+              {t('motto')}
             </div>
 
             <h1 style={{
@@ -45,7 +88,7 @@ export default function HomePage({ setActiveScreen }) {
               marginBottom: '20px',
               letterSpacing: '-1px'
             }}>
-              Turn Societal Problems Into <span style={{ color: '#16A34A' }}>Real Solutions</span>
+              {t('heroTitle1')} <span style={{ color: '#16A34A' }}>{t('heroTitle2')}</span>
             </h1>
 
             <p style={{
@@ -55,7 +98,7 @@ export default function HomePage({ setActiveScreen }) {
               marginBottom: '32px',
               maxWidth: '540px'
             }}>
-              A collaborative crowdsourcing platform where citizens report, AI understands, universities innovate, industry supports, and government enables for a better tomorrow.
+              {t('heroSub')}
             </p>
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
@@ -64,7 +107,7 @@ export default function HomePage({ setActiveScreen }) {
                 className="btn btn-primary" 
                 style={{ padding: '12px 28px', fontSize: '15px' }}
               >
-                Report a Problem
+                {t('reportProblem')}
                 <ArrowRight size={17} />
               </button>
               <button 
@@ -72,7 +115,7 @@ export default function HomePage({ setActiveScreen }) {
                 className="btn btn-outline" 
                 style={{ padding: '12px 26px', fontSize: '15px' }}
               >
-                Explore Challenges
+                {t('challenges')}
               </button>
             </div>
           </div>
@@ -94,10 +137,10 @@ export default function HomePage({ setActiveScreen }) {
                 style={{ width: '220px', height: '220px', objectFit: 'contain', margin: '0 auto 20px auto' }}
               />
               <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#0F2C59', marginBottom: '6px' }}>
-                SamadhanSetu Digital Engine
+                {language === 'hi' ? 'समाधानसेतु डिजिटल इंजन' : 'SamadhanSetu Digital Engine'}
               </h3>
               <p style={{ fontSize: '13px', color: '#64748B', lineHeight: 1.5 }}>
-                Bridging 24 Districts of Jharkhand with State Universities, CSR Grants, and Nodal Officers.
+                {language === 'hi' ? 'झारखंड के 24 जिलों को राज्य विश्वविद्यालयों, सीएसआर फंड और नोडल अधिकारियों से जोड़ना।' : 'Bridging 24 Districts of Jharkhand with State Universities, CSR Grants, and Nodal Officers.'}
               </p>
             </div>
           </div>
@@ -114,24 +157,24 @@ export default function HomePage({ setActiveScreen }) {
             textAlign: 'center'
           }}>
             <div>
-              <div style={{ fontSize: '32px', fontWeight: 800, color: '#0F2C59' }}>{platformStats.reportsReceived}</div>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: '#64748B', marginTop: '4px' }}>Reports Received</div>
+              <div style={{ fontSize: '32px', fontWeight: 800, color: '#0F2C59' }}>{stats.reportsReceived}</div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#64748B', marginTop: '4px' }}>{t('reportsReceived')}</div>
             </div>
             <div>
-              <div style={{ fontSize: '32px', fontWeight: 800, color: '#16A34A' }}>{platformStats.challengesIdentified}</div>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: '#64748B', marginTop: '4px' }}>Challenges Identified</div>
+              <div style={{ fontSize: '32px', fontWeight: 800, color: '#16A34A' }}>{stats.challengesIdentified}</div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#64748B', marginTop: '4px' }}>{t('challengesIdentified')}</div>
             </div>
             <div>
-              <div style={{ fontSize: '32px', fontWeight: 800, color: '#EA580C' }}>{platformStats.projectsInProgress}</div>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: '#64748B', marginTop: '4px' }}>Projects in Progress</div>
+              <div style={{ fontSize: '32px', fontWeight: 800, color: '#EA580C' }}>{stats.projectsInProgress}</div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#64748B', marginTop: '4px' }}>{t('projectsInProgress')}</div>
             </div>
             <div>
-              <div style={{ fontSize: '32px', fontWeight: 800, color: '#0D9488' }}>{platformStats.solutionsDeployed}</div>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: '#64748B', marginTop: '4px' }}>Solutions Deployed</div>
+              <div style={{ fontSize: '32px', fontWeight: 800, color: '#0D9488' }}>{stats.solutionsDeployed}</div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#64748B', marginTop: '4px' }}>{t('solutionsDeployed')}</div>
             </div>
             <div>
-              <div style={{ fontSize: '32px', fontWeight: 800, color: '#DC2626' }}>{platformStats.peopleBenefited}</div>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: '#64748B', marginTop: '4px' }}>People Benefited</div>
+              <div style={{ fontSize: '32px', fontWeight: 800, color: '#DC2626' }}>{stats.peopleBenefited}</div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#64748B', marginTop: '4px' }}>{t('peopleBenefited')}</div>
             </div>
           </div>
         </div>
@@ -142,13 +185,13 @@ export default function HomePage({ setActiveScreen }) {
         <div className="container">
           <div style={{ textAlign: 'center', marginBottom: '48px' }}>
             <h2 style={{ fontSize: '13px', fontWeight: 800, color: '#16A34A', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '8px' }}>
-              Process Architecture
+              {t('processTitle')}
             </h2>
             <h3 style={{ fontSize: '28px', fontWeight: 800, color: '#0F2C59' }}>
-              THE COMPLETE JOURNEY
+              {t('journeyHeader')}
             </h3>
             <p style={{ fontSize: '15px', color: '#64748B', marginTop: '8px' }}>
-              From a citizen's single voice note to an engineered, sanctioned, and deployed field solution.
+              {t('journeySub')}
             </p>
           </div>
 
@@ -157,7 +200,7 @@ export default function HomePage({ setActiveScreen }) {
             gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
             gap: '18px'
           }}>
-            {journeySteps.map((s) => (
+            {activeSteps.map((s) => (
               <div 
                 key={s.step} 
                 style={{
@@ -204,7 +247,7 @@ export default function HomePage({ setActiveScreen }) {
               className="btn btn-primary"
               style={{ padding: '14px 36px', fontSize: '15px' }}
             >
-              Start Your Contribution Today
+              {t('startContributing')}
               <ArrowRight size={17} />
             </button>
           </div>
@@ -213,3 +256,4 @@ export default function HomePage({ setActiveScreen }) {
     </div>
   );
 }
+

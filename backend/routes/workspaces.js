@@ -1,11 +1,20 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import Workspace from '../models/Workspace.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const router = express.Router();
 
-// Clean slate storage: Starts blank until collaborative projects are initiated
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+// Pure In-Memory State (RAM only - resets cleanly)
 export let memoryWorkspaces = [];
+
+export function saveWorkspaceData() {
+  // RAM only
+}
 
 // GET /api/v1/workspaces
 router.get('/', async (req, res) => {
@@ -22,41 +31,44 @@ router.get('/', async (req, res) => {
 
 // POST /api/v1/workspaces/create
 router.post('/create', (req, res) => {
-  const { title, domain, location, leadInstitution } = req.body;
+  const { title, domain, location, leadInstitution, sponsor, department } = req.body;
   const newWorkspace = {
     _id: `ws_${Date.now()}`,
-    title: title || 'Decentralized Water Purification System',
-    status: 'In Progress (Prototyping)',
-    currentPhase: 'Prototype',
-    progressPercentage: 25,
-    location: location || 'Ranchi, Jharkhand',
+    title: title || 'Grassroots Innovation Project Workspace',
+    domain: domain || 'Interdisciplinary Engineering',
+    status: 'Stage 01: Research & Problem Study',
+    currentPhase: 'Research',
+    progressPercentage: 0,
+    location: location || 'Jharkhand',
     team: {
-      university: leadInstitution || 'NIT Jamshedpur (4 NEP 2020 Credits)',
-      industry: 'Tata Steel CSR Foundation (Grant: ₹12,00,000)',
-      government: 'Jharkhand State DWSD Nodal Permit #JH-2026-88',
-      community: 'Panchayat Samiti & Jal Sahiyyas'
+      university: leadInstitution || 'University Innovation Lab (Assigned Team)',
+      industry: sponsor || 'Industry CSR Partner (Grant Allocated)',
+      government: department || 'Department Nodal Agency (Permit Active)',
+      community: 'Local Panchayat & Citizen Reporters'
     },
     phases: [
-      { name: 'Research', status: 'completed' },
-      { name: 'Prototype', status: 'in-progress' },
+      { name: 'Research', status: 'in-progress' },
+      { name: 'Prototype', status: 'pending' },
       { name: 'Pilot', status: 'pending' },
       { name: 'Deployment', status: 'pending' }
     ],
     tasks: [
-      { id: 1, title: 'Groundwater laboratory spectrometry analysis', done: true, date: 'Oct 12' },
-      { id: 2, title: 'CAD Blueprint for Gravity-Feed Nano-Filtration Unit', done: false, date: 'Oct 28' },
-      { id: 3, title: 'Hardware sensor assembly & IoT turbidity telemetry', done: false, date: 'Nov 10' },
-      { id: 4, title: 'District pilot trial on-site sanctioning & community demonstration', done: false, date: 'Nov 24' }
+      { id: 1, title: 'Field site inspection & baseline problem study', done: false, date: 'Stage 1' },
+      { id: 2, title: 'Literature review, domain research & technical feasibility', done: false, date: 'Stage 1' },
+      { id: 3, title: 'CAD engineering blueprint & lab prototype development', done: false, date: 'Stage 2' },
+      { id: 4, title: 'Pilot on-site field testing with local panchayat community', done: false, date: 'Stage 3' },
+      { id: 5, title: 'Full government handover & district scale deployment', done: false, date: 'Stage 4' }
     ],
     hardwareBom: [
-      { item: 'Activated Alumina Media Column', qty: '4 Units', status: 'Procured' },
-      { item: 'Solar Powered Turbidity IoT Node', qty: '2 Units', status: 'In Assembly' }
+      { item: 'Diagnostic Tools & Field Testing Kit', qty: '1 Set', status: 'Planning' },
+      { item: 'Prototype Fabrication Materials', qty: 'Initial Batch', status: 'In Review' }
     ],
     createdAt: new Date().toISOString()
   };
 
   memoryWorkspaces.unshift(newWorkspace);
-  res.status(201).json({ success: true, message: 'Collaborative Workspace initialized', data: newWorkspace });
+  saveWorkspaceData();
+  res.status(201).json({ success: true, message: 'Collaborative Workspace initialized at Stage 1 (Research)', data: newWorkspace });
 });
 
 // GET /api/v1/workspaces/:id
@@ -97,6 +109,8 @@ router.patch('/:id/tasks/:taskId', async (req, res) => {
     if (task) task.done = !task.done;
     const completedTasks = (ws.tasks || []).filter(t => t.done).length;
     ws.progressPercentage = ws.tasks && ws.tasks.length > 0 ? Math.round((completedTasks / ws.tasks.length) * 100) : 0;
+
+    saveWorkspaceData();
 
     res.json({ success: true, message: 'Task updated in memory', data: ws });
   } catch (error) {
